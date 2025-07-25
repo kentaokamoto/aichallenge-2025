@@ -19,11 +19,11 @@ SimplePurePursuit::SimplePurePursuit()
   // initialize parameters
   wheel_base_(declare_parameter<float>("wheel_base", 2.14)),
   lookahead_gain_(declare_parameter<float>("lookahead_gain", 1.0)),
-  lookahead_min_distance_(declare_parameter<float>("lookahead_min_distance", 1.0)),
+  lookahead_min_distance_(declare_parameter<float>("lookahead_min_distance", 1.0)),//1.0
   speed_proportional_gain_(declare_parameter<float>("speed_proportional_gain", 1.0)),
   use_external_target_vel_(declare_parameter<bool>("use_external_target_vel", false)),
   external_target_vel_(declare_parameter<float>("external_target_vel", 0.0)),
-  steering_tire_angle_gain_(declare_parameter<float>("steering_tire_angle_gain", 1.0))
+  steering_tire_angle_gain_(declare_parameter<float>("steering_tire_angle_gain", 1.0))//1.0
 {
   pub_cmd_ = create_publisher<AckermannControlCommand>("output/control_cmd", 1);
   pub_raw_cmd_ = create_publisher<AckermannControlCommand>("output/raw_control_cmd", 1);

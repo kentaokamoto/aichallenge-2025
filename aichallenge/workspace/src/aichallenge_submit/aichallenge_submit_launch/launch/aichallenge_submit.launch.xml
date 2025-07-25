@@ -23,4 +23,14 @@
   <node pkg="goal_pose_setter" exec="goal_pose_setter_node" name="goal_pose_setter" output="screen">
     <param from="$(find-pkg-share goal_pose_setter)/config/default_goal_pose.param.yaml" />
   </node>
+
+  <node pkg="editor_tool_server" exec="interactive_server" output="screen" name="editor_tool_server">
+    <param name="csv_file_path" value="/aichallenge/workspace/src/aichallenge-trajectory-editor/csv/centerline_15km.csv"/>
+    <param name="publish_on_initialize" value="true"/>
+    <param name="wait_seconds" value="5.0"/>
+    <param name="grad_min_speed" value="0.0"/>
+    <param name="grad_mid_speed" value="20.0"/>
+    <param name="grad_max_speed" value="40.0"/>
+  </node>
+
 </launch>
