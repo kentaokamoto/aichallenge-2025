@@ -1,0 +1,3 @@
+[submodule "aichallenge/workspace/src/aichallenge-trajectory-editor"]
+	path = aichallenge/workspace/src/aichallenge-trajectory-editor
+	url = https://github.com/AutomotiveAIChallenge/aichallenge-trajectory-editor.git
