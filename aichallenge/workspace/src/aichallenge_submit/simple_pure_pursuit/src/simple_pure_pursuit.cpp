@@ -21,9 +21,13 @@ SimplePurePursuit::SimplePurePursuit()
   lookahead_gain_(declare_parameter<float>("lookahead_gain", 1.0)),
   lookahead_min_distance_(declare_parameter<float>("lookahead_min_distance", 1.0)),//1.0
   speed_proportional_gain_(declare_parameter<float>("speed_proportional_gain", 1.0)),
+  speed_integral_gain_(declare_parameter<float>("speed_integral_gain", 0.1)),
+  speed_derivative_gain_(declare_parameter<float>("speed_derivative_gain", 0.05)),
   use_external_target_vel_(declare_parameter<bool>("use_external_target_vel", false)),
   external_target_vel_(declare_parameter<float>("external_target_vel", 0.0)),
-  steering_tire_angle_gain_(declare_parameter<float>("steering_tire_angle_gain", 1.0))//1.0
+  steering_tire_angle_gain_(declare_parameter<float>("steering_tire_angle_gain", 1.0)),//1.0
+  speed_error_integral_(0.0),
+  previous_speed_error_(0.0)
 {
   pub_cmd_ = create_publisher<AckermannControlCommand>("output/control_cmd", 1);
   pub_raw_cmd_ = create_publisher<AckermannControlCommand>("output/raw_control_cmd", 1);
@@ -81,8 +85,18 @@ void SimplePurePursuit::onTimer()
     double current_longitudinal_vel = odometry_->twist.twist.linear.x;
 
     cmd.longitudinal.speed = target_longitudinal_vel;
+    
+    // PID control for acceleration
+    double speed_error = target_longitudinal_vel - current_longitudinal_vel;
+    speed_error_integral_ += speed_error;
+    double speed_error_derivative = speed_error - previous_speed_error_;
+    
     cmd.longitudinal.acceleration =
-      speed_proportional_gain_ * (target_longitudinal_vel - current_longitudinal_vel);
+      speed_proportional_gain_ * speed_error +
+      speed_integral_gain_ * speed_error_integral_ +
+      speed_derivative_gain_ * speed_error_derivative;
+    
+    previous_speed_error_ = speed_error;
 
     // calc lateral control
     //// calc lookahead distance
