@@ -131,18 +131,18 @@
 
   <node pkg="simple_pure_pursuit" exec="simple_pure_pursuit" name="simple_pure_pursuit_node" output="screen">
     <param name="wheel_base" value="1.087"/>
-    <param name="max_steer_angle" value="0.64"/>
+    <param name="max_steer_angle" value="0.84"/>
     <param name="max_acceleration" value="3.0"/>
     <param name="min_acceleration" value="-1.0"/>
-    <param name="max_steer_rate" value="2.0"/>
+    <param name="max_steer_rate" value="4.0"/>
     <param name="max_velocity" value="8.0"/>
     <param name="prediction_horizon" value="12"/>
     <param name="dt" value="0.1"/>
-    <param name="q_lateral" value="20.0"/>
+    <param name="q_lateral" value="60.0"/>
     <param name="q_longitudinal" value="3.0"/>
-    <param name="q_steer_rate" value="0.1"/>
+    <param name="q_steer_rate" value="0.05"/>
     <param name="q_acceleration" value="0.5"/>
-    <param name="r_steer" value="0.05"/>
+    <param name="r_steer" value="0.01"/>
     <param name="r_acceleration" value="0.1"/>
 
     <remap from="input/kinematics" to="/localization/kinematic_state"/>

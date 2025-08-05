@@ -18,12 +18,12 @@ using tier4_autoware_utils::calcYawDeviation;
 SimplePurePursuit::SimplePurePursuit()
 : Node("simple_pure_pursuit"),
   // Vehicle parameters
-  wheel_base_(declare_parameter<float>("wheel_base", 1.087)),
-  max_steer_angle_(declare_parameter<float>("max_steer_angle", 0.64)),
-  max_acceleration_(declare_parameter<float>("max_acceleration", 3.0)),
-  min_acceleration_(declare_parameter<float>("min_acceleration", -3.0)),
-  max_steer_rate_(declare_parameter<float>("max_steer_rate", 0.5)),
-  max_velocity_(declare_parameter<float>("max_velocity", 15.0)),
+  wheel_base_(declare_parameter<double>("wheel_base", 1.087)),
+  max_steer_angle_(declare_parameter<double>("max_steer_angle", 0.64)),
+  max_acceleration_(declare_parameter<double>("max_acceleration", 3.0)),
+  min_acceleration_(declare_parameter<double>("min_acceleration", -3.0)),
+  max_steer_rate_(declare_parameter<double>("max_steer_rate", 0.5)),
+  max_velocity_(declare_parameter<double>("max_velocity", 15.0)),
   
   // MPC parameters
   prediction_horizon_(declare_parameter<int>("prediction_horizon", 10)),
@@ -115,14 +115,15 @@ void SimplePurePursuit::onTimer()
       }
     }
     
+    // Solve MPC for both lateral and longitudinal control
+    Eigen::VectorXd control_inputs = solveMPC(current_state, reference);
+
+    // Debug: Check reference trajectory（control_inputsの後に移動）
     RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000 /*ms*/, 
       "Reference - Vel: %.3f, Pos: (%.3f, %.3f), Lookahead: %.3f, Curvature: %.3f, Steer: %.3f, Velocity Factor: %.3f", 
       reference[0].v, reference[0].x, reference[0].y, 
       std::sqrt(std::pow(reference[0].x - current_state.x, 2) + std::pow(reference[0].y - current_state.y, 2)),
-      curvature, control_inputs(0));
-    
-    // Solve MPC for both lateral and longitudinal control
-    Eigen::VectorXd control_inputs = solveMPC(current_state, reference);
+      curvature, control_inputs(0), std::min(current_state.v / 5.0, 2.0));
     
     // Extract control inputs
     double steer_angle = control_inputs(0);
@@ -243,10 +244,11 @@ std::vector<ReferencePoint> SimplePurePursuit::getReferenceTrajectory(size_t sta
       }
     }
     
-    // Shorter lookahead for delayed steering initiation
-    double base_lookahead = 1.5 - 1.0 * std::min(curvature, 1.0); // Reduced from 2.0-1.5 to 1.5-1.0
-    double velocity_factor = std::min(current_velocity / 8.0, 1.5); // Reduced from 5.0 to 8.0, max from 2.0 to 1.5
-    double lookahead_multiplier = base_lookahead * velocity_factor;
+    // Even shorter lookahead for strong curve following
+    double base_lookahead = (curvature > 0.2) ? 1.0 : 1.5;
+    double lookahead_multiplier = base_lookahead - 1.0 * std::min(curvature, 1.0);
+    double velocity_factor = std::min(current_velocity / 8.0, 1.5);
+    lookahead_multiplier *= velocity_factor;
     double lookahead_distance = (i + 1) * dt_ * current_velocity * lookahead_multiplier;
     
     // Find point at lookahead distance along the trajectory
@@ -397,14 +399,21 @@ Eigen::VectorXd SimplePurePursuit::solveMPC(const VehicleState& current_state,
         lateral_weight *= 3.0; // Always triple weight
         yaw_weight *= 3.0; // Always triple weight
         
-        // Additional weights for curves - reduced for delayed steering
-        if (current_curvature > 0.2) { // Increased threshold from 0.1 to 0.2
-          lateral_weight *= 1.5; // Reduced from 2.0 to 1.5
-          yaw_weight *= 1.5; // Reduced from 2.0 to 1.5
+        // Even stronger weights for curves
+        if (current_curvature > 0.2) {
+          lateral_weight *= 2.5; // 1.5 → 2.5
+          yaw_weight *= 2.5;
         }
-        if (current_curvature > 0.5) { // Increased threshold from 0.3 to 0.5
-          lateral_weight *= 1.2; // Reduced from 1.5 to 1.2
-          yaw_weight *= 1.2; // Reduced from 1.5 to 1.2
+        if (current_curvature > 0.5) {
+          lateral_weight *= 1.5; // 1.2 → 1.5
+          yaw_weight *= 1.5;
+        }
+
+        // カーブ中はステア変化率制限を緩和
+        double steer_rate_limit = (current_curvature > 0.2) ? max_steer_rate_ * 1.5 * dt_ : max_steer_rate_ * dt_;
+        double steer_diff = best_steer - previous_steer_;
+        if (std::abs(steer_diff) > steer_rate_limit) {
+          best_steer = previous_steer_ + (steer_diff > 0 ? steer_rate_limit : -steer_rate_limit);
         }
         
         // Extreme weights for any error
