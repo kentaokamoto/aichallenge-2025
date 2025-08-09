@@ -57,11 +57,16 @@ set_initial_pose() {
     echo "Initial pose set successfully"
     sleep 1
 }
-
 check_awsim() {
-    while ! timeout 2s ros2 topic echo /awsim/control_cmd 2>/dev/null | grep -q "sec:"; do
+    # /awsim/control_cmd トピックが現れるまで待つ
+    while ! ros2 topic list | grep -q "/awsim/control_cmd"; do
         sleep 0.5
         echo "Waiting for /awsim/control_cmd topic to be available..."
+    done
+    # 型情報が取得できるまで待つ
+    while ! ros2 topic info /awsim/control_cmd 2>/dev/null | grep -q "Type:"; do
+        sleep 0.5
+        echo "Waiting for /awsim/control_cmd topic type to be available..."
     done
     sleep 1
     echo "System is ready, executing publish commands..."
