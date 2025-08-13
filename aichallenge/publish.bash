@@ -57,6 +57,7 @@ set_initial_pose() {
     echo "Initial pose set successfully"
     sleep 1
 }
+
 check_awsim() {
     # /awsim/control_cmd トピックが現れるまで待つ
     while ! ros2 topic list | grep -q "/awsim/control_cmd"; do

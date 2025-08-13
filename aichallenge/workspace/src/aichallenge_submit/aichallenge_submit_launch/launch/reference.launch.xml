@@ -125,6 +125,15 @@
     </group>
   </group>
 
+ <node pkg="editor_tool_server" exec="interactive_server" output="screen" name="editor_tool_server">
+   <param name="csv_file_path" value="/aichallenge/workspace/src/aichallenge_submit/aichallenge-trajectory-editor/csv/raceline_awsim_30km.csv"/>
+   <param name="publish_on_initialize" value="false"/>
+   <param name="wait_seconds" value="15.0"/>
+   <param name="grad_min_speed" value="0.0"/>
+   <param name="grad_mid_speed" value="15.0"/>
+   <param name="grad_max_speed" value="40.0"/>
+ </node>
+
   <!-- Pure Pursuit -->
   <let name="steering_tire_angle_gain_var" value="1.0" if="$(var simulation)"/>
   <let name="steering_tire_angle_gain_var" value="1.639" unless="$(var simulation)"/>
