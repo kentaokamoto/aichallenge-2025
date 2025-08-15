@@ -32,6 +32,13 @@ request_control() {
 #            y: 43127.57,
 #            z: 0.8778,
 #            w: 0.4788
+
+        # pose: {
+        #   position: {
+        #     x: 89634.00,
+        #     y: 43129.00,
+        #     z: 0.0
+        #   },
 set_initial_pose() {
     echo "Setting initial pose..."
     ros2 topic pub -1 /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{ 
@@ -41,15 +48,15 @@ set_initial_pose() {
       pose: {
         pose: {
           position: {
-            x: 89634.00,
-            y: 43129.00,
+            x: 89666.01577151686,
+            y: 43124.3307874416,
             z: 0.0
           },
           orientation: {
             x: 0.0,
             y: 0.0,
-            z: 0.8000,
-            w: 0.4000
+            z: -0.9683930510846941,
+            w: 0.24942914547196962
           }
         }
       }
@@ -76,10 +83,10 @@ check_awsim() {
 check_capture() {
     # Start recording rviz2
     echo "Check if screen capture is ready"
-    until (ros2 service type /debug/service/capture_screen >/dev/null); do
-        sleep 5
-        echo "Check if screen capture is not ready"
-    done
+    # until (ros2 service type /debug/service/capture_screen >/dev/null); do
+    #     sleep 5
+    #     echo "Check if screen capture is not ready"
+    # done
 }
 
 # Check if an argument was provided

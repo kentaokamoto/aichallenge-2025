@@ -118,7 +118,8 @@
 
       <!-- Customizable -->
       <node pkg="simple_trajectory_generator" exec="simple_trajectory_generator_node" name="simple_trajectory_generator" output="screen">
-            <param name="csv_path" value="$(find-pkg-share simple_trajectory_generator)/data/raceline_awsim_15km.csv"/>
+            <param name="csv_path" value="$(find-pkg-share simple_trajectory_generator)/data/raceline_awsim_30km2.csv"/>
+      <!-- <param name="csv_path" value="$(find-pkg-share simple_trajectory_generator)/data/raceline_awsim_30km_from_garage.csv"/> -->
             <param name="z" value="6.5"/>
       </node>
       
@@ -126,30 +127,40 @@
   </group>
 
  <node pkg="editor_tool_server" exec="interactive_server" output="screen" name="editor_tool_server">
-   <param name="csv_file_path" value="/aichallenge/workspace/src/aichallenge_submit/aichallenge-trajectory-editor/csv/raceline_awsim_30km.csv"/>
+   <param name="csv_file_path" value="$(find-pkg-share simple_trajectory_generator)/data/raceline_awsim_30km2.csv"/>
    <param name="publish_on_initialize" value="false"/>
    <param name="wait_seconds" value="15.0"/>
    <param name="grad_min_speed" value="0.0"/>
-   <param name="grad_mid_speed" value="15.0"/>
-   <param name="grad_max_speed" value="40.0"/>
+   <param name="grad_mid_speed" value="8.0"/>
+   <param name="grad_max_speed" value="12.0"/>
  </node>
 
   <!-- Pure Pursuit -->
-  <let name="steering_tire_angle_gain_var" value="1.0" if="$(var simulation)"/>
+  <!-- <let name="steering_tire_angle_gain_var" value="1.0" if="$(var simulation)"/> -->
+    <let name="steering_tire_angle_gain_var" value="1.50" if="$(var simulation)"/>
   <let name="steering_tire_angle_gain_var" value="1.639" unless="$(var simulation)"/>
 
-  <node pkg="simple_pure_pursuit" exec="simple_pure_pursuit" name="simple_pure_pursuit_node" output="screen">
+  <!-- <node pkg="simple_pure_pursuit" exec="simple_pure_pursuit" name="simple_pure_pursuit_node" output="screen">
     <param name="use_external_target_vel" value="false"/>
-    <param name="external_target_vel" value="10.0"/>
+    <param name="external_target_vel" value="14.0"/>
     <param name="lookahead_gain" value="0.5"/>
-    <param name="lookahead_min_distance" value="3.5"/>
+    <param name="lookahead_min_distance" value="0.7"/>
     <param name="speed_proportional_gain" value="1.0"/>
     <param name="steering_tire_angle_gain" value="$(var steering_tire_angle_gain_var)"/>
+
+    <param name="steer_kp" value="3.0"/>
+    <param name="steer_ki" value="0.001"/>
+    <param name="steer_kd" value="1.0"/>
+    <param name="speed_kp" value="1.0"/>
+    <param name="speed_ki" value="0.0"/>
+    <param name="speed_kd" value="0.0"/>
+
+
 
     <remap from="input/kinematics" to="/localization/kinematic_state"/>
     <remap from="input/trajectory" to="/planning/scenario_planning/trajectory"/>
     <remap from="output/control_cmd" to="/control/command/control_cmd"/>
-  </node>
+  </node> -->
 
   <!-- Map -->
   <group>
@@ -206,4 +217,17 @@
     </include>
   </group>
 
+<node pkg="mpc_controller" exec="mpc_controller" name="mpc_controller_node" output="screen">
+  <param name="speed_kp" value="0.8"/>
+  <param name="lookahead_min" value="2.2"/>
+  <param name="lookahead_k" value="0.75"/>
+  <param name="wheel_base" value="1.087"/>
+  <param name="max_steer_rad" value="0.64"/>
+  <param name="invert_steer" value="false"/>
+  <param name="max_ref_v" value="50.0"/>     <!-- 追加 -->
+  <param name="ey_reset" value="2.5"/>       <!-- 追加（任意） -->
+  <remap from="input/kinematics" to="/localization/kinematic_state"/>
+  <remap from="input/trajectory" to="/planning/scenario_planning/trajectory"/>
+  <remap from="output/control_cmd" to="/control/command/control_cmd"/>
+</node>
 </launch>

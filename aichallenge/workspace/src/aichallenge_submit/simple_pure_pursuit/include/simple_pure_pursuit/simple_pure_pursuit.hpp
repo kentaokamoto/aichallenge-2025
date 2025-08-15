@@ -8,6 +8,7 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <autoware_auto_vehicle_msgs/msg/steering_report.hpp>
 #include <optional>
 #include <rclcpp/rclcpp.hpp>
 
@@ -20,6 +21,7 @@ using geometry_msgs::msg::Pose;
 using geometry_msgs::msg::PointStamped;
 using geometry_msgs::msg::Twist;
 using nav_msgs::msg::Odometry;
+using autoware_auto_vehicle_msgs::msg::SteeringReport;
 
 class SimplePurePursuit : public rclcpp::Node {
  public:
@@ -28,6 +30,7 @@ class SimplePurePursuit : public rclcpp::Node {
   // subscribers
   rclcpp::Subscription<Odometry>::SharedPtr sub_kinematics_;
   rclcpp::Subscription<Trajectory>::SharedPtr sub_trajectory_;
+  rclcpp::Subscription<SteeringReport>::SharedPtr sub_steering_;
   
   // publishers
   rclcpp::Publisher<AckermannControlCommand>::SharedPtr pub_cmd_;
@@ -40,20 +43,29 @@ class SimplePurePursuit : public rclcpp::Node {
   // updated by subscribers
   Trajectory::SharedPtr trajectory_;
   Odometry::SharedPtr odometry_;
+  SteeringReport::SharedPtr steering_status_;
 
 
 
   // pure pursuit parameters
-  const double wheel_base_;
-  const double lookahead_gain_;
-  const double lookahead_min_distance_;
-  const double speed_proportional_gain_;
-  const bool use_external_target_vel_;
-  const double external_target_vel_;
-  const double steering_tire_angle_gain_;
+  private:
+  float wheel_base_;
+  float lookahead_gain_;
+  float lookahead_min_distance_;
+  float speed_proportional_gain_;
+  bool use_external_target_vel_;
+  float external_target_vel_;
+  float steering_tire_angle_gain_;
 
+  // PIDゲイン
+  float speed_kp_, speed_ki_, speed_kd_;
+  float steer_kp_, steer_ki_, steer_kd_;
 
- private:
+  // PID状態
+  double speed_integral_, speed_prev_error_;
+  double steer_integral_, steer_prev_error_;
+
+  rclcpp::Time prev_time_;
   void onTimer();
   bool subscribeMessageAvailable();
 };
