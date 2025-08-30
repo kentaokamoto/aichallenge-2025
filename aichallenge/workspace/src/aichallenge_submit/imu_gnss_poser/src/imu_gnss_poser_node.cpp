@@ -2,13 +2,20 @@
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/twist_with_covariance_stamped.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2/LinearMath/Matrix3x3.h"
 
 class ImuGnssPoser : public rclcpp::Node
 {
-
 public:
     ImuGnssPoser() : Node("imu_gnss_poser")
     {
+        // ★★★ 改善点：パラメータの宣言 ★★★
+        position_covariance_ = this->declare_parameter<double>("position_covariance", 0.1);
+        orientation_covariance_ = this->declare_parameter<double>("orientation_covariance", 10.0);
+        gnss_orientation_trust_threshold_ = this->declare_parameter<double>("gnss_orientation_trust_threshold", 1.0);
+
+
         const auto rv_qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable();
         const auto rt_qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local();
 
@@ -28,41 +35,60 @@ public:
 private:
 
     void gnss_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+        
+        auto current_gnss_pose = *msg;
 
-        // this covariance means orientation is not reliable
-        msg->pose.covariance[7*0] = 0.1;
-        msg->pose.covariance[7*1] = 0.1;
-        msg->pose.covariance[7*2] = 0.1;
-        msg->pose.covariance[7*3] = 100000.0;
-        msg->pose.covariance[7*4] = 100000.0;
-        msg->pose.covariance[7*5] = 100000.0;
+        // ★★★ 改善点：より洗練されたロジック ★★★
+        bool use_imu_orientation = false;
 
-        // insert imu if orientation is nan or empty
-        if (std::isnan(msg->pose.pose.orientation.x) ||
-            std::isnan(msg->pose.pose.orientation.y) ||
-            std::isnan(msg->pose.pose.orientation.z) ||
-            std::isnan(msg->pose.pose.orientation.w) ||
-            (msg->pose.pose.orientation.x == 0 &&
-             msg->pose.pose.orientation.y == 0 &&
-             msg->pose.pose.orientation.z == 0 &&
-             msg->pose.pose.orientation.w == 0))
+        // 1. GNSSの向き情報が明らかに無効な場合
+        if (std::isnan(current_gnss_pose.pose.pose.orientation.x) ||
+            (current_gnss_pose.pose.pose.orientation.x == 0 &&
+             current_gnss_pose.pose.pose.orientation.y == 0 &&
+             current_gnss_pose.pose.pose.orientation.z == 0 &&
+             current_gnss_pose.pose.pose.orientation.w == 0))
         {
-            msg->pose.pose.orientation.x = imu_msg_.orientation.x;
-            msg->pose.pose.orientation.y = imu_msg_.orientation.y;
-            msg->pose.pose.orientation.z = imu_msg_.orientation.z;
-            msg->pose.pose.orientation.w = imu_msg_.orientation.w;
+            use_imu_orientation = true;
         }
-        pub_pose_->publish(*msg);
-        if (!is_ekf_initialized_)
-            pub_initial_pose_3d_->publish(*msg);
+
+        // 2. GNSS自身が報告する向きの共分散が大きい場合も、IMUの向きを採用
+        // (GNSSドライバがヨーの共分散を適切に設定している場合に有効)
+        const double yaw_covariance = current_gnss_pose.pose.covariance[5*6 + 5];
+        if (yaw_covariance > gnss_orientation_trust_threshold_) {
+            use_imu_orientation = true;
+        }
+
+        if (use_imu_orientation && imu_received_) {
+            current_gnss_pose.pose.pose.orientation = imu_msg_.orientation;
+            
+            // IMUの向きを使ったことを共分散に反映
+            current_gnss_pose.pose.covariance[3*6 + 3] = orientation_covariance_; // Roll
+            current_gnss_pose.pose.covariance[4*6 + 4] = orientation_covariance_; // Pitch
+            current_gnss_pose.pose.covariance[5*6 + 5] = orientation_covariance_; // Yaw
+        }
+
+        // 位置の共分散はパラメータ値で上書き (GNSSの測位精度はある程度一定と仮定)
+        current_gnss_pose.pose.covariance[0*6 + 0] = position_covariance_; // X
+        current_gnss_pose.pose.covariance[1*6 + 1] = position_covariance_; // Y
+        current_gnss_pose.pose.covariance[2*6 + 2] = position_covariance_; // Z
+
+
+        pub_pose_->publish(current_gnss_pose);
+        
+        // EKFの初期化が済んでいない場合、最初の信頼できるポーズを初期位置として一度だけパブリッシュ
+        if (!is_ekf_initialized_ && (use_imu_orientation || yaw_covariance < gnss_orientation_trust_threshold_)) {
+            pub_initial_pose_3d_->publish(current_gnss_pose);
+        }
     }
 
     void imu_callback(sensor_msgs::msg::Imu::SharedPtr msg) {
         imu_msg_ = *msg;
+        imu_received_ = true;
     }
 
     void twist_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr)
     {
+        // EKFが一度でも動作を開始したら、初期位置の再設定は行わない
         is_ekf_initialized_ = true;
     }
 
@@ -73,6 +99,12 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu_;
     sensor_msgs::msg::Imu imu_msg_;
     bool is_ekf_initialized_ = {false};
+    bool imu_received_ = {false};
+
+    // ★★★ 改善点：パラメータ用メンバ変数 ★★★
+    double position_covariance_;
+    double orientation_covariance_;
+    double gnss_orientation_trust_threshold_;
 };
 
 int main(int argc, char *argv[])
